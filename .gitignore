@@ -340,3 +340,5 @@ ASALocalRun/
 # venv
 venv/
 
+.DS_Store
+ProjectTemplate/.DS_Store
