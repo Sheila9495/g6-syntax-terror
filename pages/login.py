@@ -82,7 +82,7 @@ with col1:
         else:
             attempts, locked = increment_failed_attempts(user["id"], lock_after=3)
             if locked:
-                st.error("Username or password does not exist. Account is locked after 3 attempts.")
+                st.error("Username or password does not exist. Account locked after 3 attempts.")
             else:
                 st.error("Username or password does not exist.")
                 st.caption(f"Attempt {attempts}/3")
