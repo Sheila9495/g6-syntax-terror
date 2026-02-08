@@ -1,6 +1,7 @@
 import bcrypt
 from database import get_db_cursor
 import re
+from mysql.connector import IntegrityError
 
 
 # hashes the password using bcrypt
@@ -33,7 +34,7 @@ def is_email_valid(email: str) -> bool:
 
 
 # registers a new user by validating the email, using password hashing, and inserting the user's data into the database
-def register_user(username: str, email: str, password: str) -> bool:
+def register_user(username: str, email: str, password: str, quiz_json: str | None = None) -> bool:
     if not is_email_valid(email):
         raise ValueError("Invalid email format. Please enter a valid email address.")
     ok, message = is_pw_ok(password)
@@ -48,9 +49,22 @@ def register_user(username: str, email: str, password: str) -> bool:
                 "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)",
                 (username.strip(), email.strip().lower(), hashed_password),
             )
-    except Exception as e:
+            user_id = cursor.lastrowid
+            if quiz_json:
+                try:
+                    cursor.execute(
+                        "INSERT INTO user_sessions (user_id, latest_quiz) VALUES (%s, %s)",
+                        (user_id, quiz_json),
+                    )
+                except Exception:
+                    pass
+    except IntegrityError:
         raise ValueError(
             "Oh no! That username or email is taken. Try another one."
+        )
+    except Exception as e:
+        raise ValueError(
+            "Something went wrong. Please try again."
         ) from e
 
     return True
@@ -71,8 +85,15 @@ def login_user(email: str, password: str):
         raise ValueError("Invalid email or password.")
     if not is_pw_valid(password, user_result["password_hash"]):
         raise ValueError("Invalid email or password.")
+
+    user_id = user_result["id"]
+    with get_db_cursor() as cursor:
+        cursor.execute(
+            "INSERT IGNORE INTO user_sessions (user_id, latest_quiz) VALUES (%s, NULL)",
+            (user_id,),
+        )
     return {
-        "id": user_result["id"],
+        "id": user_id,
         "username": user_result["username"],
         "email": user_result["email"],
     }
